@@ -59,7 +59,24 @@ class CTCTextEncoder:
         return "".join([self.ind2char[int(ind)] for ind in inds]).strip()
 
     def ctc_decode(self, inds) -> str:
-        pass  # TODO
+        """
+        Args:
+            log_probs (np.array[N, T, C]): log probabilities of output tokens.
+                Numpy array of shape [N=batch_size, T=seq_len, C=num_tokens].
+        Returns:
+            raw_text (str): aligned text (without empty tokens and repetitions)
+        """
+        seq_len = len(inds)
+        unique_consecutive = []
+        cur = None
+        for i in inds:
+            if cur is None or cur != i:
+                unique_consecutive.append(i)
+                cur = i
+        predicted_text = \
+            ''.join(self.ind2char[i] for i in unique_consecutive if self.ind2char[i] != self.EMPTY_TOK)
+        return predicted_text
+
 
     @staticmethod
     def normalize_text(text: str):

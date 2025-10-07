@@ -1,0 +1,8 @@
+train:
+  get_spectrogram: # special key for getting spectrogram
+    _target_: torchaudio.transforms.Spectrogram
+    n_fft: 400
+inference:
+  get_spectrogram:
+    _target_: torchaudio.transforms.Spectrogram
+    n_fft: 400
