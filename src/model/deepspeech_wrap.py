@@ -1,6 +1,7 @@
 from torch import nn
 from torch.nn import Sequential
 from torchaudio.models import DeepSpeech
+import torch
 
 
 class DeepSpeechWrapper(nn.Module):
@@ -18,7 +19,7 @@ class DeepSpeechWrapper(nn.Module):
                               n_hidden = n_hidden,
                               n_class = n_tokens, dropout = dropout)
 
-    def forward(self, spectrogram, spectrogram_length, **batch):
+    def forward(self, spectrogram: torch.Tensor, spectrogram_length: torch.Tensor, **batch):
         """
         Model forward method.
 

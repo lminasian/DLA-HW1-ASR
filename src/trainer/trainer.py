@@ -84,40 +84,23 @@ class Trainer(BaseTrainer):
             self.log_spectrogram(**batch)
             self.log_predictions(**batch)
 
-    def log_spectrogram(self, spectrogram, **batch):
+    def log_spectrogram(self, spectrogram, **kwargs):
         spectrogram_for_plot = spectrogram[0].detach().cpu()
         image = plot_spectrogram(spectrogram_for_plot)
         self.writer.add_image("spectrogram", image.permute(1, 2, 0))
 
     def log_predictions(
-        self, text, log_probs, log_probs_length, audio_path, examples_to_log=10, **batch
+        self, text, log_probs, log_probs_length, audio_path, examples_to_log=10, **kwargs
     ):
-        # TODO add beam search
-        # Note: by improving text encoder and metrics design
-        # this logging can also be improved significantly
-
-        argmax_inds = log_probs.cpu().argmax(-1).numpy()
-        argmax_inds = [
-            inds[: int(ind_len)]
-            for inds, ind_len in zip(argmax_inds, log_probs_length.numpy())
-        ]
-        argmax_texts_raw = [self.text_encoder.decode(inds) for inds in argmax_inds]
-        argmax_texts = [self.text_encoder.ctc_decode(inds) for inds in argmax_inds]
-        tuples = list(zip(argmax_texts, text, argmax_texts_raw, audio_path))
-
-        rows = {}
-        for pred, target, raw_pred, audio_path in tuples[:examples_to_log]:
-            target = self.text_encoder.normalize_text(target)
-            wer = calc_wer(target, pred) * 100
-            cer = calc_cer(target, pred) * 100
-
-            rows[Path(audio_path).name] = {
-                "target": target,
-                "raw prediction": raw_pred,
-                "predictions": pred,
-                "wer": wer,
-                "cer": cer,
-            }
+        assert not self.is_train
+        metric_funcs = self.metrics["inference"]
+        
+        cols = {'text': text}
+        for metric in metric_funcs:
+            predictions = metric.decode_and_eval(log_probs, log_probs_length, text)
+            cols[metric.decoder.name] = list(map(lambda p: p.text, predictions))
+            cols[metric.name] = list(map(lambda p: p.score, predictions))
+        pred_df = pd.DataFrame.from_dict(cols)
         self.writer.add_table(
-            "predictions", pd.DataFrame.from_dict(rows, orient="index")
+            'predictions', pred_df,
         )

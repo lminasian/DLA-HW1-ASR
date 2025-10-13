@@ -3,34 +3,20 @@ from string import ascii_lowercase
 
 import torch
 
-# TODO add CTC decode
-# TODO add BPE, LM, Beam Search support
-# Note: think about metrics and encoder
-# The design can be remarkably improved
-# to calculate stuff more efficiently and prettier
-
+# TODO add BPE
 
 class CTCTextEncoder:
-    EMPTY_TOK = ""
-
-    def __init__(self, alphabet=None, **kwargs):
+    def __init__(self, vocab):
         """
         Args:
-            alphabet (list): alphabet for language. If None, it will be
-                set to ascii
+            vocab (Vocabulary): alphabet for language.
         """
-
-        if alphabet is None:
-            alphabet = list(ascii_lowercase + " ")
-
-        self.alphabet = alphabet
-        self.vocab = [self.EMPTY_TOK] + list(self.alphabet)
-
-        self.ind2char = dict(enumerate(self.vocab))
-        self.char2ind = {v: k for k, v in self.ind2char.items()}
+        self.vocab = vocab
+        assert self.vocab.char2ind[self.vocab.blank_token] == 0, \
+            "Current implementation relies on index of blank token being 0 (see torch.nn.CTCLoss)"
 
     def __len__(self):
-        return len(self.vocab)
+        return len(self.tokens)
 
     def __getitem__(self, item: int):
         assert type(item) is int
@@ -38,6 +24,7 @@ class CTCTextEncoder:
 
     def encode(self, text) -> torch.Tensor:
         text = self.normalize_text(text)
+        text = text.replace(' ', self.silence_token)
         try:
             return torch.Tensor([self.char2ind[char] for char in text]).unsqueeze(0)
         except KeyError:
@@ -46,40 +33,26 @@ class CTCTextEncoder:
                 f"Can't encode text '{text}'. Unknown chars: '{' '.join(unknown_chars)}'"
             )
 
-    def decode(self, inds) -> str:
-        """
-        Raw decoding without CTC.
-        Used to validate the CTC decoding implementation.
-
-        Args:
-            inds (list): list of tokens.
-        Returns:
-            raw_text (str): raw text with empty tokens and repetitions.
-        """
-        return "".join([self.ind2char[int(ind)] for ind in inds]).strip()
-
-    def ctc_decode(self, inds) -> str:
-        """
-        Args:
-            log_probs (np.array[N, T, C]): log probabilities of output tokens.
-                Numpy array of shape [N=batch_size, T=seq_len, C=num_tokens].
-        Returns:
-            raw_text (str): aligned text (without empty tokens and repetitions)
-        """
-        seq_len = len(inds)
-        unique_consecutive = []
-        cur = None
-        for i in inds:
-            if cur is None or cur != i:
-                unique_consecutive.append(i)
-                cur = i
-        predicted_text = \
-            ''.join(self.ind2char[i] for i in unique_consecutive if self.ind2char[i] != self.EMPTY_TOK)
-        return predicted_text
-
+    # @lminasian TODO: remove this shit
+    # adding it now in case external code calls text_encoder.ind2char etc.
+    @property
+    def tokens(self):
+        return self.vocab.tokens
+    
+    @property
+    def ind2char(self):
+        return self.vocab.ind2char
+    
+    @property
+    def char2ind(self):
+        return self.vocab.char2ind
+    
+    @property
+    def silence_token(self):
+        return self.vocab.silence_token
 
     @staticmethod
     def normalize_text(text: str):
         text = text.lower()
-        text = re.sub(r"[^a-z ]", "", text)
+        text = re.sub(r"[^'a-z ]", "", text)
         return text
