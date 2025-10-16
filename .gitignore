@@ -69,7 +69,7 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-.ipynb
+*.ipynb
 
 # pyenv
 .python-version
@@ -113,3 +113,7 @@ outputs/
 .vscode/
 .idea/
 __MACOSX/
+
+# vim
+*.swp
+*.swo

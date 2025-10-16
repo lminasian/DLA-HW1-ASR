@@ -64,7 +64,7 @@ class CTCArgmaxDecoder(CTCDecoder):
 
 
 class CTCBeamSearchDecoder(CTCDecoder):
-    def __init__(self, vocab, lexicon = None, lm = None, lm_weight=None, nbest = 1, *args, **kwargs):
+    def __init__(self, vocab, lexicon = None, lm = None, lm_weight = 0, nbest = 1, *args, **kwargs):
         assert nbest == 1
         super().__init__(vocab, *args, **kwargs)
         self.torch_beam_search_decoder = ctc_decoder(

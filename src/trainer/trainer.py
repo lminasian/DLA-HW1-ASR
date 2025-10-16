@@ -8,6 +8,9 @@ from src.metrics.utils import calc_cer, calc_wer
 from src.trainer.base_trainer import BaseTrainer
 
 
+from torch.profiler import record_function
+from contextlib import nullcontext
+
 class Trainer(BaseTrainer):
     """
     Trainer class. Defines the logic of batch logging and processing.
@@ -32,33 +35,42 @@ class Trainer(BaseTrainer):
                 the dataloader (possibly transformed via batch transform),
                 model outputs, and losses.
         """
-        batch = self.move_batch_to_device(batch)
-        batch = self.transform_batch(batch)  # transform batch on device -- faster
 
+        record_if_use_profiler = lambda s: record_function(s) if self.use_profiler else nullcontext()
+        
+        with record_if_use_profiler("migrate_batch"):
+            batch = self.move_batch_to_device(batch)
+        with record_if_use_profiler("transform_batch"):
+            batch = self.transform_batch(batch)  # transform batch on device -- faster
+ 
         metric_funcs = self.metrics["inference"]
         if self.is_train:
             metric_funcs = self.metrics["train"]
             self.optimizer.zero_grad()
 
-        outputs = self.model(**batch)
-        batch.update(outputs)
+        with record_if_use_profiler("forward"):
+            outputs = self.model(**batch)
+            batch.update(outputs)
 
-        all_losses = self.criterion(**batch)
-        batch.update(all_losses)
+            all_losses = self.criterion(**batch)
+            batch.update(all_losses)
 
         if self.is_train:
-            batch["loss"].backward()  # sum of all losses is always called loss
-            self._clip_grad_norm()
-            self.optimizer.step()
-            if self.lr_scheduler is not None:
-                self.lr_scheduler.step()
+            with record_if_use_profiler("backward"):
+                batch["loss"].backward()  # sum of all losses is always called loss
+                self._clip_grad_norm()
+                self.optimizer.step()
+                if self.lr_scheduler is not None:
+                    self.lr_scheduler.step()
 
         # update metrics for each loss (in case of multiple losses)
         for loss_name in self.config.writer.loss_names:
-            metrics.update(loss_name, batch[loss_name].item())
+            with record_if_use_profiler("loss_" + loss_name):
+                metrics.update(loss_name, batch[loss_name].item())
 
         for met in metric_funcs:
-            metrics.update(met.name, met(**batch))
+            with record_if_use_profiler("metric_" + met.name):
+                metrics.update(met.name, met(**batch))
         return batch
 
     def _log_batch(self, batch_idx, batch, mode="train"):
