@@ -1,13 +1,59 @@
 defaults:
-  - model: baseline
+  - model: conformer
   - metrics: example
-  - datasets: example_eval # we do not want to run inference on training data
+  - datasets: dev_clean_test_clean # we do not want to run inference on training data
   - dataloader: example
-  - transforms: example
+  - transforms: mel
+  - vocab: basic
   - _self_
+
 inferencer:
-  device_tensors: ["data_object", "labels"] # which tensors should be on device (ex. GPU)
+  device_tensors: ["spectrogram", "text_encoded"] # which tensors should be on device (ex. GPU)
   device: auto # device name or "auto"
   save_path: "example" # any name here, can be a dataset name
   seed: 1
-  from_pretrained: "saved/model_best.pth" # path to the pretrained model
+  from_pretrained: "model_best.pth" # path to the pretrained model
+
+  logits_only: null # deprecated
+  metrics_only: null # deprecated
+
+  predict_text_only: False
+  decoder: argmax_decoder # used only if predict_only is enabled
+decoders:
+  raw_decoder:
+    name: raw-decoder
+    vocab: ${vocab}
+    _target_: src.text_encoder.CTCRawDecoder
+
+  argmax_decoder:
+    name: argmax-decoder
+    vocab: ${vocab}
+    _target_: src.text_encoder.CTCArgmaxDecoder
+
+  beam_search_decoder:
+    name: beam-search-decoder
+    vocab: ${vocab}
+    _target_: src.text_encoder.CTCBeamSearchDecoder
+    lexicon: librispeech-3-gram/lexicon.txt
+    lm: librispeech-3-gram/lm.bin
+    lm_weight: 3
+    nbest: 1
+  
+  beam_search_decoder_without_lm:
+    name: beam-search-decoder-without-lm
+    vocab: ${vocab}
+    _target_: src.text_encoder.CTCBeamSearchDecoder
+    lexicon: null
+    lm: null
+    lm_weight: 0
+    nbest: 1
+  
+  my_own_beam_search_decoder:
+    name: my-own-beam-search-decoder
+    vocab: ${vocab}
+    _target_: src.text_encoder.CTCMyOwnBeamSearchDecoder
+    nbest: 1
+    beam_size: 50
+text_encoder:
+  _target_: src.text_encoder.CTCTextEncoder
+  vocab: ${vocab}
