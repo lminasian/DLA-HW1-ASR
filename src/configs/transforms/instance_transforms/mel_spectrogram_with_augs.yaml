@@ -1,0 +1,29 @@
+train:
+  get_spectrogram: # special key for getting spectrogram
+    _target_: torchaudio.transforms.MelSpectrogram
+    sample_rate: 16000
+    n_mels: 128
+  audio: # name of the tensor on which we apply transform
+    _target_: torchvision.transforms.v2.Compose
+    transforms:
+      - _target_: src.transforms.wav_augs.Gain
+      - _target_: src.transforms.wav_augs.AddNoise
+        var: 0.005
+      - _target_: src.transforms.wav_augs.SpeedPerturbation
+        possible_speedups: [0.6, 0.8, 1, 1.2, 1.5]
+      - _target_: src.transforms.wav_augs.PitchShift
+        n_steps: 0 # i think it makes things too hard, so i set it to 0
+  spectrogram:
+    _target_: torchvision.transforms.v2.Compose
+    transforms:
+      - _target_: torchaudio.transforms.AmplitudeToDB
+        stype: power
+        top_db: 80
+      - _target_: src.transforms.spec_augs.SpecAug
+        max_time_masking: 0.1
+        max_frequency_masking: 0.1
+inference:
+  get_spectrogram:
+    _target_: torchaudio.transforms.MelSpectrogram
+    sample_rate: 16000
+    n_mels: 128

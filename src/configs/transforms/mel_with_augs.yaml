@@ -1,4 +1,4 @@
 defaults:
   - batch_transforms: example
-  - instance_transforms: spectrogram
+  - instance_transforms: mel_spectrogram_with_augs
   - _self_
