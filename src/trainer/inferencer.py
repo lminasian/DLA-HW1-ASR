@@ -4,6 +4,9 @@ from tqdm.auto import tqdm
 from src.metrics.tracker import MetricTracker
 from src.trainer.base_trainer import BaseTrainer
 
+from pathlib import Path
+from typing import List
+from src.text_encoder.ctc_decoder import CTCDecoder
 
 class Inferencer(BaseTrainer):
     """
@@ -25,6 +28,7 @@ class Inferencer(BaseTrainer):
         metrics=None,
         batch_transforms=None,
         skip_model_load=False,
+        decoders: List[CTCDecoder] = None,
     ):
         """
         Initialize the Inferencer.
@@ -48,10 +52,14 @@ class Inferencer(BaseTrainer):
                 pre-trained checkpoint path. Set this argument to True if
                 the model desirable weights are defined outside of the
                 Inferencer Class.
+            logits_only (bool): if True, metrics won't be calculated. Only the
+                logits after model's forward() are going to be saved.
         """
         assert (
             skip_model_load or config.inferencer.get("from_pretrained") is not None
         ), "Provide checkpoint or set skip_model_load=True"
+
+        self.decoders = decoders
 
         self.config = config
         self.cfg_trainer = self.config.inferencer
@@ -120,41 +128,73 @@ class Inferencer(BaseTrainer):
                 the dataloader (possibly transformed via batch transform)
                 and model outputs.
         """
-        # TODO change inference logic so it suits ASR assignment
-        # and task pipeline
 
         batch = self.move_batch_to_device(batch)
         batch = self.transform_batch(batch)  # transform batch on device -- faster
 
-        outputs = self.model(**batch)
-        batch.update(outputs)
+        if not self.cfg_trainer.metrics_only:
+            outputs = self.model(**batch)
+            batch.update(outputs)
 
-        if metrics is not None:
-            for met in self.metrics["inference"]:
-                metrics.update(met.name, met(**batch))
+        if not (self.cfg_trainer.logits_only or self.cfg_trainer.predict_text_only): # TODO: also not metrics only (otherwise ok, but 2 times computation happens)
+            if metrics is not None:
+                for met in self.metrics["inference"]:
+                    metrics.update(met.name, met(**batch))
 
         # Some saving logic. This is an example
         # Use if you need to save predictions on disk
 
-        batch_size = batch["logits"].shape[0]
+        batch_size = batch["log_probs"].shape[0]
         current_id = batch_idx * batch_size
+        
+        if self.cfg_trainer.logits_only:
+            for i in range(batch_size):
+                log_probs_i = outputs['log_probs'][i]
+                log_probs_i_len = outputs['log_probs_length'][i]
+                cut = log_probs_i[:log_probs_i_len]
 
-        for i in range(batch_size):
-            # clone because of
-            # https://github.com/pytorch/pytorch/issues/1995
-            logits = batch["logits"][i].clone()
-            label = batch["labels"][i].clone()
-            pred_label = logits.argmax(dim=-1)
+                audio_name = Path(batch['audio_path'][i]).stem
+                torch.save(cut,
+                           self.save_path / part / f"{audio_name}.pth")
+        elif self.cfg_trainer.metrics_only:
+            for met in self.metrics['inference']:
+                predictions = met.decode_and_eval(
+                    batch['log_probs'],
+                    batch['log_probs_length'],
+                    batch['text'],
+                )
+                for i, p in enumerate(predictions):
+                    audio_name = Path(batch['audio_path'][i]).stem
+                    decoder_name = met.name
+                    path = Path(self.save_path / part / f"{audio_name}_{decoder_name}.txt")
+                    path.parent.mkdir(exist_ok=True, parents=True)
+                    with open(path, 'w') as f:
+                        print(p.text, file = f)
+                        print(p.score, file = f)
+        elif self.cfg_trainer.predict_text_only:
+            decoder = self.decoders[self.cfg_trainer.decoder]
+            predictions_texts = decoder.decode_on_batch(batch['log_probs'], batch['log_probs_length'])
+            for i, pred_text in enumerate(predictions_texts):
+                audio_name = Path(batch['audio_path'][i]).stem
+                path = Path(Path(self.cfg_trainer.save_path) / f"{audio_name}.txt")
+                path.parent.mkdir(exist_ok=True, parents=True)
+                with open(path, 'w') as f:
+                    print(pred_text, file = f)
+        elif self.save_path is not None:
+            for i in range(batch_size):
+                # clone because of
+                # https://github.com/pytorch/pytorch/issues/1995
+                logits = batch["log_probs"][i].clone()
+                label = batch["text_encoded"][i].clone()
+                pred_label = logits.argmax(dim=-1)
 
-            output_id = current_id + i
+                output_id = current_id + i
 
-            output = {
-                "pred_label": pred_label,
-                "label": label,
-            }
+                output = {
+                    "pred_label": pred_label,
+                    "label": label,
+                }
 
-            if self.save_path is not None:
-                # you can use safetensors or other lib here
                 torch.save(output, self.save_path / part / f"output_{output_id}.pth")
 
         return batch

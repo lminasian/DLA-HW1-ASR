@@ -91,6 +91,7 @@ class Trainer(BaseTrainer):
         # logging scheme might be different for different partitions
         if mode == "train":  # the method is called only every self.log_step steps
             self.log_spectrogram(**batch)
+            self.log_audio(**batch)
         else:
             # Log Stuff
             self.log_spectrogram(**batch)
@@ -100,6 +101,16 @@ class Trainer(BaseTrainer):
         spectrogram_for_plot = spectrogram[0].detach().cpu()
         image = plot_spectrogram(spectrogram_for_plot)
         self.writer.add_image("spectrogram", image.permute(1, 2, 0))
+    
+    def log_audio(self, audio, audio_orig, **kwargs):
+        self.writer.add_audio("audio",
+                              audio[0].detach().cpu().unsqueeze(0), # unsqueeze for channels
+                              sample_rate=16000,
+        )
+        self.writer.add_audio("audio_orig",
+                              audio_orig[0].detach().cpu().unsqueeze(0), # unsqueeze for channels
+                              sample_rate=16000,
+        )
 
     def log_predictions(
         self, text, log_probs, log_probs_length, audio_path, examples_to_log=10, **kwargs
