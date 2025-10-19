@@ -3,6 +3,8 @@ from torchaudio.models.decoder import ctc_decoder
 from typing import List, Union, Optional
 from src.text_encoder.vocabulary import Vocabulary
 
+from src.text_encoder.beam_search import aligned_beam_search
+
 
 class CTCDecoder:
     def __init__(self, vocab: Vocabulary, name = None):
@@ -20,14 +22,14 @@ class CTCDecoder:
             None if log_probs is not batched
         """
         if len(log_probs.shape) == 3:
-            return self.decode_on_batch(log_probs)
+            return self.decode_on_batch(log_probs, lengths)
         return self.decode(log_probs)
     
-    def decode_on_batch(self, log_probs):
+    def decode_on_batch(self, log_probs, lengths):
         if len(log_probs.shape) == 2:
             log_probs = log_probs.unsqueeze(0)
         predictions = []
-        for log_probs_sample, length in zip(log_probs, length):
+        for log_probs_sample, length in zip(log_probs, lengths):
             decoded_text = self.decode(log_probs_sample[:length])
             predictions.append(decoded_text)
         return predictions
@@ -79,12 +81,36 @@ class CTCBeamSearchDecoder(CTCDecoder):
         self.nbest = nbest
 
     def decode(self, log_probs) -> List:
-        assert self.nbest == 1
+        assert self.nbest == 1, "Too big appetite my friend"
         lengths = torch.tensor([log_probs.shape[0]])
-        hypotheses = self.torch_beam_search_decoder(log_probs.unsqueeze(0).detach().cpu(), lengths.detach().cpu())[0] # batch_size=1
+        hypotheses = self.torch_beam_search_decoder(
+            log_probs.unsqueeze(0).detach().cpu().contiguous(),
+            lengths.detach().cpu())[0] # batch_size=1
         predicted_text = ' '.join(hypotheses[0].words)
         
         return predicted_text
+    
+
+class CTCMyOwnBeamSearchDecoder(CTCDecoder):
+    def __init__(self, vocab, nbest = 1, beam_size = 50, *args, **kwargs):
+        assert nbest == 1
+        super().__init__(vocab, *args, **kwargs)
+        self.nbest = nbest
+        self.beam_size = beam_size
+        
+    def decode(self, log_probs) -> List:
+        assert self.nbest == 1, "Too big appetite my friend"
+
+        hypothesis = aligned_beam_search(
+            log_probs,
+            ind2char = self.vocab.ind2char,
+            beam_size = self.beam_size,
+            empty_token_id = self.vocab.char2ind[self.vocab.blank_token],
+            num_candidates = 1
+        )[0]
+        predicted_text = ' '.join(hypothesis.text.split(self.vocab.silence_token))
+        return predicted_text
+        
 
 
 # lminasian TODO: remove code-duplication using pytest features.
@@ -131,6 +157,22 @@ def test_beamsearch_decoder(): # may take some time to download LM (only once)
     vocab = Vocabulary(tokens, silence_token = '|', blank_token = '-')
 
     beam_search_decoder = CTCBeamSearchDecoder(vocab, lexicon, lm, lm_weight = lm_weight)
+    text = 'ronaldo|is|the|most|famous|guy|in|portugal'
+    torch.manual_seed(42)
+    log_probs = torch.randn(len(text), len(tokens))
+    for i in range(len(text)):
+        log_probs[i, vocab.char2ind[text[i]]] = torch.max(log_probs[i]) + 200
+    pred_text = beam_search_decoder.decode(log_probs)
+    assert pred_text == text
+
+
+def test_my_own_beamsearch_decoder(): # may take some time to download LM (only once)
+    tokens = (
+        ['-', '|', "'"] + list(chr(ord('a') + i) for i in range(0, 26))
+    )
+    vocab = Vocabulary(tokens, silence_token = '|', blank_token = '-')
+
+    beam_search_decoder = CTCMyOwnBeamSearchDecoder(vocab)
     text = 'ronaldo|is|the|most|famous|guy|in|portugal'
     torch.manual_seed(42)
     log_probs = torch.randn(len(text), len(tokens))
