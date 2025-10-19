@@ -48,6 +48,8 @@ def main(config):
             instantiate(metric_config, text_encoder=text_encoder)
         )
 
+    decoders = instantiate(config.decoders)
+
     # save_path for model predictions
     save_path = ROOT_PATH / "data" / "saved" / config.inferencer.save_path
     save_path.mkdir(exist_ok=True, parents=True)
@@ -62,14 +64,17 @@ def main(config):
         save_path=save_path,
         metrics=metrics,
         skip_model_load=False,
+        decoders = decoders,
     )
 
     logs = inferencer.run_inference()
-
-    for part in logs.keys():
-        for key, value in logs[part].items():
-            full_key = part + "_" + key
-            print(f"    {full_key:15s}: {value}")
+    if config.inferencer.logits_only or config.inferencer.predict_text_only:
+        print(f"Your predictions are saved in {config.inferencer.save_path}")
+    else:
+        for part in logs.keys():
+            for key, value in logs[part].items():
+                full_key = part + "_" + key
+                print(f"    {full_key:15s}: {value}")
 
 
 if __name__ == "__main__":
