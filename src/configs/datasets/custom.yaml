@@ -1,0 +1,6 @@
+test:
+  _target_: src.datasets.CustomDirAudioDataset
+  audio_dir: data/custom/audio
+  transcription_dir: data/custom/transcriptions # can be null if you like, see custom_no_transcriptions.yaml
+  logits_dir: null # deprecated
+  instance_transforms: ${transforms.instance_transforms.inference}
