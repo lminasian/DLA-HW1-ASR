@@ -1,0 +1,14 @@
+train: [] # metrics that are calculated during training
+inference: # metrics that are calculated during inference (eval)
+  - _target_: src.metrics.ArgmaxCERMetric
+    name: "CER_(Argmax)" # it is better to avoid spaces in names
+    decoder: ${decoders.argmax_decoder}
+  - _target_: src.metrics.ArgmaxWERMetric
+    name: "WER_(Argmax)"
+    decoder: ${decoders.argmax_decoder}
+  - _target_: src.metrics.MyOwnBeamSearchCERMetric
+    decoder: ${decoders.my_own_beam_search_decoder}
+    name: "CER_(MyOwnBeamSearch)"
+  - _target_: src.metrics.MyOwnBeamSearchWERMetric
+    decoder: ${decoders.my_own_beam_search_decoder}
+    name: "WER_(MyOwnBeamSearch)"

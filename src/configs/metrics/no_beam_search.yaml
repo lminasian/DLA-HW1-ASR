@@ -12,9 +12,3 @@ inference: # metrics that are calculated during inference (eval)
   - _target_: src.metrics.RawWERMetric
     decoder: ${decoders.raw_decoder}
     name: "WER_(Raw)"
-  - _target_: src.metrics.BeamSearchCERMetric
-    decoder: ${decoders.beam_search_decoder}
-    name: "CER_(BeamSearch)"
-  - _target_: src.metrics.BeamSearchWERMetric
-    decoder: ${decoders.beam_search_decoder}
-    name: "WER_(BeamSearch)"
