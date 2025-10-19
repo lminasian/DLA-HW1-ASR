@@ -1,0 +1,48 @@
+Iterating lm_weight over grid:
+2.0 2.1 2.2 2.3 2.4 2.5 2.6 2.7 2.8 2.9 3.0
+ConformerImpl(
+  (conformer_encoder): ConformerEncoder(
+    (layers): ModuleList(
+      (0-15): 16 x EncoderLayer(
+        (conv): ConvolutionModule(
+          (layer_norm): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+          (pointwise_conv_1): Conv1d(128, 256, kernel_size=(1,), stride=(1,))
+          (glu): GLU(dim=1)
+          (depthwise_conv): Conv1d(128, 128, kernel_size=(33,), stride=(1,), padding=(16,), groups=128)
+          (batch_norm): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (swish): SiLU()
+          (pointwise_conv_2): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
+          (dropout): Dropout(p=0.0, inplace=False)
+        )
+        (mhsa): MHSAModule(
+          (layer_norm): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+          (mhsa): MultiheadAttention(
+            (out_proj): NonDynamicallyQuantizableLinear(in_features=128, out_features=128, bias=True)
+          )
+          (dropout): Dropout(p=0.0, inplace=False)
+        )
+        (ffn1): FFNModule(
+          (layer_norm): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+          (dropout1): Dropout(p=0.0, inplace=False)
+          (dropout2): Dropout(p=0.0, inplace=False)
+          (fc1): Linear(in_features=128, out_features=256, bias=True)
+          (fc2): Linear(in_features=256, out_features=128, bias=True)
+          (swish): SiLU()
+        )
+        (ffn2): FFNModule(
+          (layer_norm): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+          (dropout1): Dropout(p=0.0, inplace=False)
+          (dropout2): Dropout(p=0.0, inplace=False)
+          (fc1): Linear(in_features=128, out_features=256, bias=True)
+          (fc2): Linear(in_features=256, out_features=128, bias=True)
+          (swish): SiLU()
+        )
+        (layer_norm): LayerNorm((128,), eps=1e-05, elementwise_affine=True)
+      )
+    )
+  )
+  (lstm): LSTM(128, 128, proj_size=29, batch_first=True)
+)
+All parameters: 4138112
+Trainable parameters: 4138112
+Loading model weights from: saved/conformer-train-other-beam-search-3-gram-continue/model_best.pth ...
