@@ -1,79 +1,80 @@
-# Automatic Speech Recognition (ASR) with PyTorch
-
-<p align="center">
-  <a href="#about">About</a> •
-  <a href="#installation">Installation</a> •
-  <a href="#how-to-use">How To Use</a> •
-  <a href="#credits">Credits</a> •
-  <a href="#license">License</a>
-</p>
-
-## About
-
-This repository contains a template for solving ASR task with PyTorch. This template branch is a part of the [HSE DLA course](https://github.com/markovka17/dla) ASR homework. Some parts of the code are missing (or do not follow the most optimal design choices...) and students are required to fill these parts themselves (as well as writing their own models, etc.).
-
-See the task assignment [here](https://github.com/markovka17/dla/tree/2024/hw1_asr).
-
-## Installation
-
-Follow these steps to install the project:
-
-0. (Optional) Create and activate new environment using [`conda`](https://conda.io/projects/conda/en/latest/user-guide/getting-started.html) or `venv` ([`+pyenv`](https://github.com/pyenv/pyenv)).
-
-   a. `conda` version:
-
-   ```bash
-   # create env
-   conda create -n project_env python=PYTHON_VERSION
-
-   # activate env
-   conda activate project_env
-   ```
-
-   b. `venv` (`+pyenv`) version:
-
-   ```bash
-   # create env
-   ~/.pyenv/versions/PYTHON_VERSION/bin/python3 -m venv project_env
-
-   # alternatively, using default python version
-   python3 -m venv project_env
-
-   # activate env
-   source project_env/bin/activate
-   ```
-
-1. Install all required packages
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. Install `pre-commit`:
-   ```bash
-   pre-commit install
-   ```
-
-## How To Use
-
-To train a model, run the following command:
-
+# Setup environment
 ```bash
-python3 train.py -cn=CONFIG_NAME HYDRA_CONFIG_ARGUMENTS
+git clone https://github.com/lminasian/DLA-HW1-ASR lminasian-dla-hw1-asr
+cd lminasian-dla-hw1-asr
+git checkout solution
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-Where `CONFIG_NAME` is a config from `src/configs` and `HYDRA_CONFIG_ARGUMENTS` are optional arguments.
+# Inference
 
-To run inference (evaluate the model or save predictions):
-
+## Download model
 ```bash
-python3 inference.py HYDRA_CONFIG_ARGUMENTS
+python3 src/misc/download.py
+!unzip conformer-train-other-beam-search-3-gram-continue.zip
+!unzip librispeech-3-gram.zip
 ```
 
-## Credits
+## Test-clean/Test-other
+I destroyed clean:
+```bash
+python3 inference.py datasets=dev_other_test_other
+```
 
-This repository is based on a [PyTorch Project Template](https://github.com/Blinorot/pytorch_project_template).
+# Validate model
 
-## License
+```bash
+python3 inference.py \
+    inferencer.from_pretrained=conformer-train-other-beam-search-3-gram-continue/model_best.pth \
+    datasets=test_other
+```
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](/LICENSE)
+## Custom dataset
+Your custom dataset is required to have the following structure:
+```
+NameOfTheDirectoryWithUtterances
+├── audio
+│   ├── UtteranceID1.wav # may be flac or mp3
+│   ├── UtteranceID2.wav
+│   .
+│   .
+│   .
+│   └── UtteranceIDn.wav
+└── transcriptions # ground truth, may be omitted, SEE BELOW MY FRIEND
+    ├── UtteranceID1.txt
+    ├── UtteranceID2.txt
+    .
+    .
+    .
+    └── UtteranceIDn.txt
+```
+
+Run the inference with
+```bash
+python3 inference.py datasets=custom_no_transcriptions \
+    inferencer.predict_text_only=True \
+    inferencer.save_path=data/custom/predictions \
+    dataloader.batch_size=1
+```
+
+Your predictions will appear in specified directory in the following way:
+```
+data/custom/predictions:
+    UtteranceID1.txt
+    UtteranceID2.txt
+    etc
+```
+
+And then you can calculate metrics with
+
+```bash
+python3 calc_metrics.py transcriptions_dir=/path/to/transcriptions predictions_dir=data/custom/predictions
+```
+
+# Demo
+Please see [this notebook](https://www.kaggle.com/code/futuregrandmaster/demodla/edit)
+
+
