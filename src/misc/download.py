@@ -13,10 +13,10 @@ file_to_url = {
 }
 
 
-checkpoint = 'conformer-train-clean-100-beam-search-3-gram-continue' # final model
+checkpoint = 'conformer-train-clean-100-beam-search-3-gram-continue.zip' # final model
 gdown.download(file_to_url[checkpoint], checkpoint)
 
-lm = 'librispeech-3-gram'
+lm = 'librispeech-3-gram.zip'
 gdown.download(file_to_url[lm], lm)
 
 
