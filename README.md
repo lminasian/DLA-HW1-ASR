@@ -1,3 +1,8 @@
+# Report
+
+See [report.md](report.md).
+
+
 # Setup environment
 ```bash
 git clone https://github.com/lminasian/DLA-HW1-ASR lminasian-dla-hw1-asr
@@ -14,17 +19,11 @@ pip install -r requirements.txt
 ## Download model
 ```bash
 python3 src/misc/download.py
-!unzip conformer-train-other-beam-search-3-gram-continue.zip
-!unzip librispeech-3-gram.zip
+unzip conformer-train-other-beam-search-3-gram-continue.zip
+unzip librispeech-3-gram.zip
 ```
 
-## Test-clean/Test-other
-I destroyed clean:
-```bash
-python3 inference.py datasets=dev_other_test_other
-```
-
-# Validate model
+## Infer on librispeech
 
 ```bash
 python3 inference.py \
@@ -32,7 +31,7 @@ python3 inference.py \
     datasets=test_other
 ```
 
-## Custom dataset
+## Infer on custom dataset
 Your custom dataset is required to have the following structure:
 ```
 NameOfTheDirectoryWithUtterances
@@ -57,6 +56,7 @@ Run the inference with
 python3 inference.py datasets=custom_no_transcriptions \
     inferencer.predict_text_only=True \
     inferencer.save_path=data/custom/predictions \
+    inferencer.from_pretrained=conformer-train-other-beam-search-3-gram/model_best.pth \
     dataloader.batch_size=1
 ```
 
