@@ -84,6 +84,10 @@ class BaseDataset(Dataset):
         text = data_dict["text"]
         text_encoded = self.text_encoder.encode(text)
 
+        if 'audio' in self.instance_transforms:
+            audio_orig = audio.clone()
+            audio = self.preprocess_audio(audio)
+
         spectrogram = self.get_spectrogram(audio)
 
         instance_data = {
@@ -94,12 +98,20 @@ class BaseDataset(Dataset):
             "audio_path": audio_path,
         }
 
-        # TODO think of how to apply wave augs before calculating spectrogram
-        # Note: you may want to preserve both audio in time domain and
-        # in time-frequency domain for logging
+        if 'audio' in self.instance_transforms:
+            instance_data['audio_orig'] = audio_orig
+
+        if self.with_logits():
+            instance_data.update({
+                'log_probs': data_dict['log_probs'].unsqueeze(0),
+            })
+
         instance_data = self.preprocess_data(instance_data)
 
         return instance_data
+
+    def with_logits(self) -> bool:
+        return False
 
     def __len__(self):
         """
@@ -126,6 +138,11 @@ class BaseDataset(Dataset):
             spectrogram (Tensor): spectrogram for the audio.
         """
         return self.instance_transforms["get_spectrogram"](audio)
+    
+    def preprocess_audio(self, audio):
+        if self.instance_transforms is not None:
+            result = self.instance_transforms['audio'](audio)
+        return result
 
     def preprocess_data(self, instance_data):
         """
@@ -143,8 +160,8 @@ class BaseDataset(Dataset):
         """
         if self.instance_transforms is not None:
             for transform_name in self.instance_transforms.keys():
-                if transform_name == "get_spectrogram":
-                    continue  # skip special key
+                if transform_name == "get_spectrogram" or transform_name == 'audio':
+                    continue  # skip special key(get_spectrogram) and already processed(audio)
                 instance_data[transform_name] = self.instance_transforms[
                     transform_name
                 ](instance_data[transform_name])

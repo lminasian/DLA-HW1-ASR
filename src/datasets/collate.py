@@ -24,13 +24,18 @@ def collate_fn(dataset_items: list[dict]):
                 batch[key] = []
             batch[key].append(val)
 
-    def pad_tensors(tensors):
-        max_len = max(t.shape[-1] for t in tensors)
+    def pad_tensors(tensors, dim=-1):
+        max_len = max(t.shape[dim] for t in tensors)
         padded_tensors = []
         lengths = []
         for t in tensors:
-            lengths.append(t.shape[-1])
-            padding_size = max_len - t.shape[-1]
+            lengths.append(t.shape[dim])
+            padding_size = max_len - t.shape[dim]
+
+            padding = tuple(list(
+                [0, 0] * dim + [0, padding_size]
+            ))
+
             padded = nn.functional.pad(t, (0, padding_size))
             padded_tensors.append(padded)
         padded_tensors = torch.concat(padded_tensors)
@@ -39,10 +44,18 @@ def collate_fn(dataset_items: list[dict]):
 
     keys = list(batch.keys())
     for key in keys:
-        if key in ['audio', 'spectrogram', 'text_encoded']:
+        if key in ['audio', 'audio_orig', 'spectrogram', 'text_encoded', 'log_probs']:
+
+            # tranpose is needed because pad_tensors pads on dim=-1
+            # and log_probs have shape [N, T, C]
+            if key == 'log_probs':
+                batch[key] = [t.transpose(1, 2) for t in batch[key]]
             padded, lengths = pad_tensors(batch[key])
             batch[key] = padded
             batch[key + '_length'] = lengths
+            if key == 'log_probs':
+                batch[key] = batch[key].transpose(1, 2)
+
         elif key in ['text', 'audio_path']:
             pass
         else:
