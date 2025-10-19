@@ -3,7 +3,13 @@ from typing import List
 from src.metrics.base_metric import BaseMetric
 from src.metrics.utils import calc_cer, calc_wer
 from dataclasses import dataclass
-from src.text_encoder.ctc_decoder import *
+from src.text_encoder.ctc_decoder import (
+    CTCRawDecoder,
+    CTCArgmaxDecoder,
+    CTCBeamSearchDecoder,
+    CTCMyOwnBeamSearchDecoder,
+)
+import torch
 
 
 @dataclass
@@ -76,10 +82,22 @@ class RawWERMetric(WERMetric):
 class BeamSearchCERMetric(CERMetric):
     def __init__(self, decoder, *args, **kwargs):
         assert isinstance(decoder, CTCBeamSearchDecoder)
-        super().__init__(decoder)
+        super().__init__(decoder, *args, **kwargs)
 
 
 class BeamSearchWERMetric(WERMetric):
     def __init__(self, decoder, *args, **kwargs):
         assert isinstance(decoder, CTCBeamSearchDecoder)
-        super().__init__(decoder)
+        super().__init__(decoder, *args, **kwargs)
+
+
+class MyOwnBeamSearchCERMetric(CERMetric):
+    def __init__(self, decoder, *args, **kwargs):
+        assert isinstance(decoder, CTCMyOwnBeamSearchDecoder)
+        super().__init__(decoder, *args, **kwargs)
+
+
+class MyOwnBeamSearchWERMetric(WERMetric):
+    def __init__(self, decoder, *args, **kwargs):
+        assert isinstance(decoder, CTCMyOwnBeamSearchDecoder)
+        super().__init__(decoder, *args, **kwargs)

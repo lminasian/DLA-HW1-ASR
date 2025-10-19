@@ -5,4 +5,6 @@ from src.metrics.asr_metric import (
     RawWERMetric,
     BeamSearchCERMetric,
     BeamSearchWERMetric,
+    MyOwnBeamSearchCERMetric,
+    MyOwnBeamSearchWERMetric,
 )
