@@ -1,0 +1,10 @@
+_target_: src.model.ConformerImpl
+input_dim: 128
+num_heads: 4
+ffn_dim: 256
+num_layers: 16
+kernel_size: 33
+dropout: 0.0
+
+lstm_num_layers: 1
+lstm_hidden_size: 128
